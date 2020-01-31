@@ -108,14 +108,16 @@ const enableLogging = opt => {
 const getLinks = async opt => {
   const { page } = opt;
   const anchors = await page.evaluate(() =>
-    Array.from(document.querySelectorAll("a,link[rel='alternate']")).map(anchor => {
-      if (anchor.href.baseVal) {
-        const a = document.createElement("a");
-        a.href = anchor.href.baseVal;
-        return a.href;
+    Array.from(document.querySelectorAll("a,link[rel='alternate']")).map(
+      anchor => {
+        if (anchor.href.baseVal) {
+          const a = document.createElement("a");
+          a.href = anchor.href.baseVal;
+          return a.href;
+        }
+        return anchor.href;
       }
-      return anchor.href;
-    })
+    )
   );
 
   const iframes = await page.evaluate(() =>
@@ -184,7 +186,12 @@ const crawl = async opt => {
     // Port can be null, therefore we need the null check
     const isOnAppPort = port && port.toString() === options.port.toString();
 
-    if (hostname === "localhost" && isOnAppPort && !uniqueUrls.has(newUrl) && !streamClosed) {
+    if (
+      hostname === "localhost" &&
+      isOnAppPort &&
+      !uniqueUrls.has(newUrl) &&
+      !streamClosed
+    ) {
       uniqueUrls.add(newUrl);
       enqued++;
       queue.write(newUrl);
@@ -220,6 +227,23 @@ const crawl = async opt => {
     if (!shuttingDown && !skipExistingFile) {
       try {
         const page = await browser.newPage();
+        page.evaluateOnNewDocument(`
+          (function() {
+            var prevTime = 0;
+
+            window.requestAnimationFrame = function(callback) {
+              var now = window.performance.now();
+              var nextTime = Math.max(prevTime + 16, now);
+
+              return window.setTimeout(function() {
+                callback(nextTime);
+                prevTime = nextTime;
+              }, nextTime - now);
+            };
+
+            window.cancelAnimationFrame = window.clearTimeout;
+          })();
+        `);
         await page._client.send("ServiceWorker.disable");
         await page.setCacheEnabled(options.puppeteer.cache);
         if (options.viewport) await page.setViewport(options.viewport);
