@@ -227,23 +227,6 @@ const crawl = async (opt) => {
     if (!shuttingDown && !skipExistingFile) {
       try {
         const page = await browser.newPage();
-        page.evaluateOnNewDocument(`
-          (function() {
-            var prevTime = 0;
-
-            window.requestAnimationFrame = function(callback) {
-              var now = window.performance.now();
-              var nextTime = Math.max(prevTime + 16, now);
-
-              return window.setTimeout(function() {
-                callback(nextTime);
-                prevTime = nextTime;
-              }, nextTime - now);
-            };
-
-            window.cancelAnimationFrame = window.clearTimeout;
-          })();
-        `);
         await page._client.send("ServiceWorker.disable");
         await page.setCacheEnabled(options.puppeteer.cache);
         if (options.viewport) await page.setViewport(options.viewport);
